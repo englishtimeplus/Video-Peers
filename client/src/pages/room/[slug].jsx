@@ -18,13 +18,13 @@ const RoomPage = () => {
     const [isSendButtonVisible, setIsSendButtonVisible] = useState(true);
 
     const handleUserJoined = useCallback(({ email, id }) => {
-        //! console.log(`Email ${email} joined the room!`);
+        console.log(`Email ${email} joined the room!`);
         setRemoteSocketId(id);
     }, []);
 
     const handleIncomingCall = useCallback(async ({ from, offer }) => {
         setRemoteSocketId(from);
-        //! console.log(`incoming call from ${from} with offer ${offer}`);
+        //! console.log(`incoming call from ${from} with offer ${offer}`); 
         const stream = await navigator.mediaDevices.getUserMedia({
             audio: true,
             video: true
@@ -33,6 +33,7 @@ const RoomPage = () => {
 
         const ans = await peer.getAnswer(offer);
         socket.emit("call:accepted", { to: from, ans });
+
     }, [socket]);
 
     const sendStreams = useCallback(() => {
@@ -50,6 +51,7 @@ const RoomPage = () => {
     }, [sendStreams]);
 
     const handleNegoNeededIncoming = useCallback(async ({ from, offer }) => {
+        // alert("Negotiation Needed!");
         const ans = await peer.getAnswer(offer);
         socket.emit("peer:nego:done", { to: from, ans });
     }, [socket]);
@@ -82,6 +84,7 @@ const RoomPage = () => {
     }, [])
 
     useEffect(() => {
+        socket.on("room:receive-userlist", handleUserList);
         socket.on("user:joined", handleUserJoined);
         socket.on("incoming:call", handleIncomingCall);
         socket.on("call:accepted", handleCallAccepted);
@@ -89,6 +92,7 @@ const RoomPage = () => {
         socket.on("peer:nego:final", handleNegoFinal);
 
         return () => {
+            socket.off("room:receive-userlist", handleUserList);
             socket.off("user:joined", handleUserJoined);
             socket.off("incoming:call", handleIncomingCall);
             socket.off("call:accepted", handleCallAccepted);
@@ -98,6 +102,7 @@ const RoomPage = () => {
     },
         [
             socket,
+            handleUserList,
             handleUserJoined,
             handleIncomingCall,
             handleCallAccepted,
@@ -201,18 +206,25 @@ const RoomPage = () => {
 
     const { slug } = router.query;
 
+    const getUserList = useCallback(() => {
+        socket.emit("room:userlist", { to: socket.id, room: slug });
+        console.log("Getting User List", socket.id);
+    }, [socket, slug]);
+    const [userList, setUserList] = useState([]);
+    const handleUserList = useCallback(({ users }) => {
+        console.log(users);
+        setUserList(users);
+    }, []);
     return (
-        <div className='flex flex-col items-center justify-center w-screen h-screen overflow-hidden'>
+        <div className='flex flex-col items-center justify-center w-screen h-screen '>
             <title>Room No. {slug}</title>
-            <h1 className='absolute top-0 left-0 text-5xl
-            text-center font-josefin tracking-tighter mt-5 ml-5 mmd:text-xl mxs:text-sm'>Video
-                <VideoCallIcon sx={{ fontSize: 50, color: 'rgb(30,220,30)' }} />
-                Peers
-            </h1>
+            <button className='bg-slate-600' onClick={getUserList}>Get User List</button>
             <h4 className='font-bold text-xl md:text-2xl 
                 mmd:text-sm mt-5 mb-4 msm:max-w-[100px] text-center'>
                 {remoteSocketId ? "Connected With Remote User!" : "No One In Room"}
             </h4>
+            {remoteSocketId} - {isSendButtonVisible}
+
             {(remoteStream && remoteSocketId && isSendButtonVisible) &&
                 <button className='bg-green-500 hover:bg-green-600' onClick={sendStreams}>
                     Send Stream
@@ -227,6 +239,14 @@ const RoomPage = () => {
                     </button>
                 )
             }
+            {userList?.map(user => (
+                <div key={user.id} className='flex items-center justify-center gap-6'>
+                    <p className='text-lg font-bold'>{user.email}</p>
+                    <button className='bg-green-500 hover:bg-green-600' onClick={() => setRemoteSocketId(user.id)}>
+                        <VideoCallIcon fontSize='medium' />
+                    </button>
+                </div>
+            ))}
             <div className="flex flex-col w-full items-center justify-center overflow-hidden">
                 {
                     myStream &&

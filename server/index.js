@@ -37,6 +37,20 @@ io.on("connection", (socket) => {
         io.to(socket.id).emit("room:join", data);
     });
 
+    socket.on('room:userlist', ({ to, room }) => {
+        console.log(room);
+        const users = io.sockets.adapter.rooms.get(room);
+        console.log(Array.from(users.entries()));
+        const userList = Array.from(users.entries()).map(([id, _]) => {
+            return {
+                id,
+                email: socketToEmail.get(id)
+            }
+        });
+        io.to(to).emit('room:receive-userlist', { users: userList });
+        console.log(users);
+    });
+
     socket.on("user:call", ({ to, offer }) => {
         io.to(to).emit("incoming:call", { from: socket.id, offer });
     });

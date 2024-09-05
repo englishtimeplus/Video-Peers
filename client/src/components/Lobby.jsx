@@ -44,7 +44,7 @@ const LobbyScreen = () => {
                 >
                     <label htmlFor="email">Email ID</label>
                     <input
-                        type="email"
+                        type="text"
                         id='email'
                         required
                         value={email}
